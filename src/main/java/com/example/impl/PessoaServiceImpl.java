@@ -4,11 +4,13 @@ import com.example.model.Pessoa;
 import com.example.repository.PessoaRepository;
 import com.example.service.PessoaService;
 
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PessoaServiceImpl implements PessoaService {
@@ -50,20 +52,38 @@ public class PessoaServiceImpl implements PessoaService {
 	}
 
 	@Override
+	@Transactional
 	public Pessoa update(Integer id, Pessoa pessoa) {
-		return pessoaRepository.findById(id)
-			.map(existingPessoa -> {
-				existingPessoa.setNome(pessoa.getNome());
-				existingPessoa.setCpf(pessoa.getCpf());
-				existingPessoa.setDataNascimento(pessoa.getDataNascimento());
-				existingPessoa.setEmail(pessoa.getEmail());
-				existingPessoa.setNacionalidade(pessoa.getNacionalidade());
-				existingPessoa.setNaturalidade(pessoa.getNaturalidade());
-				existingPessoa.setSexo(pessoa.getSexo());
-				return pessoaRepository.save(existingPessoa);
-			})
-			.orElseThrow(() -> new IllegalArgumentException("Pessoa not found with id: " + id));
+		Pessoa existingPessoa = pessoaRepository.findById(id)
+				.orElseThrow(() -> new PessoaNotFoundException("Pessoa not found with id: " + id));
+
+		updatePessoaFields(existingPessoa, pessoa);
+
+		return pessoaRepository.save(existingPessoa);
 	}
+
+	public class PessoaNotFoundException extends RuntimeException {
+		public PessoaNotFoundException(String message) {
+			super(message);
+		}
+	}
+
+	private void updatePessoaFields(Pessoa existingPessoa, Pessoa pessoa) {
+		try {
+			for (Method method : Pessoa.class.getDeclaredMethods()) {
+				if (method.getName().startsWith("set")) {
+					Method getMethod = Pessoa.class.getMethod("get" + method.getName().substring(3));
+					if (getMethod != null) {
+						method.invoke(existingPessoa, getMethod.invoke(pessoa));
+					}
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+
 
 	@Override
 	public void delete(Integer id) {
