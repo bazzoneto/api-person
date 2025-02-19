@@ -54,27 +54,38 @@ public class PessoaServiceImpl implements PessoaService {
 	@Override
 	@Transactional
 	public Pessoa update(Integer id, Pessoa pessoa) {
+		// Encontre a pessoa existente pelo id
 		Pessoa existingPessoa = pessoaRepository.findById(id)
 				.orElseThrow(() -> new PessoaNotFoundException("Pessoa not found with id: " + id));
 
+		// Atualiza os campos (evita atualizar o id)
 		updatePessoaFields(existingPessoa, pessoa);
 
+		// Salva a pessoa atualizada
 		return pessoaRepository.save(existingPessoa);
 	}
 
+	// Exceção customizada
 	public class PessoaNotFoundException extends RuntimeException {
 		public PessoaNotFoundException(String message) {
 			super(message);
 		}
 	}
 
+	// Método para atualizar os campos de uma pessoa existente
 	private void updatePessoaFields(Pessoa existingPessoa, Pessoa pessoa) {
 		try {
+			// Itera sobre os métodos set da classe Pessoa
 			for (Method method : Pessoa.class.getDeclaredMethods()) {
 				if (method.getName().startsWith("set")) {
+					// Acesse o método getter correspondente
 					Method getMethod = Pessoa.class.getMethod("get" + method.getName().substring(3));
 					if (getMethod != null) {
-						method.invoke(existingPessoa, getMethod.invoke(pessoa));
+						// Verifica se o campo não é o id para evitar alteração do id
+						if (!method.getName().equals("setId")) {
+							// Atualiza os campos não-íd
+							method.invoke(existingPessoa, getMethod.invoke(pessoa));
+						}
 					}
 				}
 			}
@@ -82,8 +93,6 @@ public class PessoaServiceImpl implements PessoaService {
 			e.printStackTrace();
 		}
 	}
-
-
 
 	@Override
 	public void delete(Integer id) {
